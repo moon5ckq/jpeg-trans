@@ -5,6 +5,7 @@
  */
 
 #include "jpeg_trans.h"
+#include <cstring>
 
 #define BLOCK_SIZE 16384
 #define QUALITY 80

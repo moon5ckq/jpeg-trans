@@ -8,6 +8,7 @@
 #define __JPEG_TRANS_H__
 
 #include <cstdlib>
+#include <cstdio>
 #include <vector>
 #include <jpeglib.h>
 

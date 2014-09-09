@@ -5,10 +5,8 @@
 TARGET = example
 all: $(TARGET)
 
-INCLUDE = -I..\
-	-I/opt/local/include
-LIBS = -L/opt/local/lib\
-	-ljpeg
+INCLUDE = -I..
+LIBS = 	-ljpeg
 OPTFLAGS = -O2
 CFLAGS = \
 	-std=c++11 \
