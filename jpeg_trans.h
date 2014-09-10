@@ -20,6 +20,7 @@ struct GrayImage {
 
 BuffType compress_to_data(const GrayImage& img_data);
 BuffType compress_to_data(JOCTET const* img_data, int width, int height);
+BuffType compress_yuv420(JOCTET const* yuv_data, int width, int height);
 GrayImage decompress_from_data(const BuffType& jpg_data);
 GrayImage decompress_from_data(JOCTET const* jpg_data, size_t size);
 

@@ -10,12 +10,34 @@
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        printf("usage: %s <output> [width height]\n", argv[0]);
+        printf("usage: %s <output> [width height] [yuv_data]\n", argv[0]);
         return 0;
     }
 
+
     int width = argc > 3 ? atoi(argv[2]) : 320,
         height = argc > 3 ? atoi(argv[3]) : 240;
+ 
+    if (argc > 4) {
+        FILE *fin = fopen(argv[4] , "rb");
+        fseek(fin , 0 , SEEK_END);
+        int len = ftell(fin);
+        rewind(fin);
+        JOCTET* yuv_data = new JOCTET[len];
+        printf("yuv_data size = %d\n", len);
+        fread(yuv_data, sizeof(JOCTET), len, fin);
+        fclose(fin);
+
+        auto ret = compress_yuv420(yuv_data, width, height);
+
+        // save to file
+        FILE* out = fopen(argv[1], "wb");
+        fwrite(ret.data(), sizeof(JOCTET), ret.size(), out);
+        fclose(out);
+
+        return 0;
+    }
+    
     JOCTET * data = new JOCTET[width * height];
     // get random gray image
     for (int i = 0; i < width * height; ++i)

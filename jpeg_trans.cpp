@@ -77,6 +77,87 @@ GrayImage decompress_from_data(const BuffType& jpg_data) {
     return decompress_from_data(&jpg_data[0], jpg_data.size());
 }
 
+BuffType compress_yuv420(JOCTET const* yuv_data, int width, int height) {
+    jpeg_compress_struct cinfo;
+    jpeg_error_mgr jerr;
+    BuffType buff;
+    
+    cinfo.err = jpeg_std_error(&jerr);
+    jpeg_create_compress(&cinfo);
+
+    cinfo.image_width = width;
+    cinfo.image_height = height;
+    cinfo.input_components = 3;
+    jpeg_set_defaults(&cinfo);
+    jpeg_set_colorspace(&cinfo, JCS_YCbCr);
+#if JPEG_LIB_VERSION >= 70
+    cinfo.do_fancy_downsampling = FALSE;
+#endif
+    cinfo.raw_data_in = TRUE;
+    cinfo.comp_info[0].h_samp_factor = 2;
+    cinfo.comp_info[0].v_samp_factor = 2;
+    cinfo.comp_info[1].h_samp_factor = 1;
+    cinfo.comp_info[1].v_samp_factor = 1;
+    cinfo.comp_info[2].h_samp_factor = 1;
+    cinfo.comp_info[2].v_samp_factor = 1;
+    jpeg_set_quality(&cinfo, 80, true);
+    cinfo.dct_method = JDCT_FASTEST; 
+
+
+    DestWithBuff *dest = (DestWithBuff*)
+        (* cinfo.mem->alloc_small)((j_common_ptr)&cinfo, JPOOL_PERMANENT, sizeof(DestWithBuff));
+    dest->buff = &buff;
+
+    cinfo.dest = (jpeg_destination_mgr*) dest;
+    cinfo.dest->init_destination =  [](j_compress_ptr c) {
+        BuffType &buff = * ((DestWithBuff*) c->dest)->buff;
+        buff.resize(BLOCK_SIZE);
+        c->dest->next_output_byte = buff.data();
+        c->dest->free_in_buffer = buff.size();
+    };
+    cinfo.dest->empty_output_buffer = [](j_compress_ptr c) -> boolean {
+        BuffType &buff = * ((DestWithBuff*) c->dest)->buff;
+        size_t old_size = buff.size();
+        buff.resize(old_size + BLOCK_SIZE);
+        c->dest->next_output_byte = buff.data() + old_size;
+        c->dest->free_in_buffer = buff.size() - old_size;
+        return true;
+    };
+    cinfo.dest->term_destination = [](j_compress_ptr c) {
+        BuffType &buff = * ((DestWithBuff*) c->dest)->buff;
+        buff.resize(buff.size() - c->dest->free_in_buffer);
+    };
+    jpeg_start_compress(&cinfo, true);
+
+
+    JSAMPROW y[16];
+    JSAMPROW cb[8];
+    JSAMPROW cr[8];
+    JSAMPARRAY data[3];
+    data[0] = y;
+    data[1] = cr;
+    data[2] = cb;
+
+    int ysz = width * height;
+    JOCTET* data_src = const_cast<JOCTET*>(yuv_data);
+
+    for (int j = 0; j < height; j += 16) {
+        for (int i = 0; i < 16; ++ i) {
+            y[i] = data_src + width * (i + j);
+            if (i % 2 == 0) {
+                cb[i >> 1] = data_src + ysz + (width >> 1) * ((i + j) >> 1);
+                cr[i >> 1] = data_src + ysz + (ysz >> 2) + (width >> 1) * ((i + j) >> 1);
+            }
+        }
+        jpeg_write_raw_data(&cinfo, data, 16);
+    }
+    
+    jpeg_finish_compress(&cinfo);
+    jpeg_destroy_compress(&cinfo);
+
+    return buff;
+}
+
 GrayImage decompress_from_data(JOCTET const* jpg_data, size_t size) {
     GrayImage img;
     jpeg_decompress_struct cinfo;
